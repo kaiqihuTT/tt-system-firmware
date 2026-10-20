@@ -28,6 +28,28 @@
 	memc: memc {
 		compatible = "tenstorrent,mimir-memc";
 		mem-tiles = <&gddr_tile0 &gddr_tile1>;
+		/* 8 GB GDDR window at the GDDR base (32 GB = 0x8_0000_0000) */
+		mem-start-gb = <32>;   /* 0..127, was SCRATCH_07[6:0] */
+		mem-end-gb = <40>;     /* 0..127, was SCRATCH_07[13:7]; start + 8 GB */
+		interleave-mode = <0>; /* NOC_INTERLEAVE_TILE, was SCRATCH_15[4:2] */
+		/*
+		 * Not a GB count: a noc_gddr7_realign_t code (0 = 4 GB total,
+		 * 1 = 6 GB, 2 = 8 GB, ... 7 = 32 GB). Was SCRATCH_14[17:13].
+		 */
+		capacity-gb = <2>;     /* NOC_GDDR7_REALIGNMENT_8GB: 1 GB/channel */
+
+		/* GDDR bring-up params (fw_params): emulation with a behavioural PHY */
+		exec-mode = "emu";
+		phy-type = "beh";
+		vendor = "avery-sim";
+		channel-density = "1-gb";
+		ctrl-config-method = "compiled";
 		status = "okay";
+
+		/* Enabled FSPs, in order; unlisted FSP fields use the library default */
+		fsp0 {
+			freq = <32>;
+			phy-train-en;
+		};
 	};
 };

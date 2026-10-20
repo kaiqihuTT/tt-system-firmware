@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Tenstorrent AI ULC
+# SPDX-License-Identifier: Apache-2.0
+
+config BL1_TB_PASS_BEFORE_MIS
+	bool "Signal testbench pass and halt instead of launching MIS"
+	help
+	  For running BL1 alone on a testbench: once boot reaches main(), write
+	  the pass marker (0xACAFACA1) to SCRATCH_00 and spin instead of
+	  launching MIS. A failed memc init halts at its checkpoint without
+	  signalling pass.
+
+source "Kconfig.zephyr"

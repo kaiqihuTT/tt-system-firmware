@@ -14,6 +14,7 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/init.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/sys_io.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/toolchain.h>
 
@@ -22,6 +23,16 @@ LOG_MODULE_REGISTER(mimir_gddr_config, CONFIG_LOG_DEFAULT_LEVEL);
 #define MIMIR_GDDR_CONFIG_INIT_PRIORITY 80
 BUILD_ASSERT(MIMIR_GDDR_CONFIG_INIT_PRIORITY < CONFIG_MEMC_TT_MIMIR_INIT_PRIORITY,
 	     "GDDR config must initialize before the memc controller device");
+
+/* FW-handshake scratch regs (written by the DV harness) */
+#define SMC_CTRL_SCRATCH_07_ADDR 0xC0010138u /* firewall window    */
+#define SMC_CTRL_SCRATCH_14_ADDR 0xC0010170u /* memory_capacity_gb */
+#define SMC_CTRL_SCRATCH_15_ADDR 0xC0010178u /* interleave_mode    */
+
+#define SCRATCH07_FW_START_GB(v)        ((uint64_t)((v) & 0x7Fu))        /* [6:0]   */
+#define SCRATCH07_FW_END_GB(v)          ((uint64_t)(((v) >> 7) & 0x7Fu)) /* [13:7]  */
+#define SCRATCH15_INTERLEAVE_MODE(v)    (((v) >> 2) & 0x7u)              /* [4:2]   */
+#define SCRATCH14_MEMORY_CAPACITY_GB(v) (((v) >> 13) & 0x1Fu)            /* [17:13] */
 
 static fw_params_t mimir_fw_params_storage;
 
@@ -109,7 +120,18 @@ static int mimir_gddr_configure(void)
 
 	backend = &mimir_gddr_backend;
 
-	return memc_tt_mimir_set_config(DEVICE_DT_GET(DT_NODELABEL(memc)), backend, fp);
+	uint32_t s07 = sys_read32(SMC_CTRL_SCRATCH_07_ADDR);
+	uint32_t s14 = sys_read32(SMC_CTRL_SCRATCH_14_ADDR);
+	uint32_t s15 = sys_read32(SMC_CTRL_SCRATCH_15_ADDR);
+	const struct memc_tt_mimir_addr_cfg addr_cfg = {
+		.mem_start = SCRATCH07_FW_START_GB(s07) << 30,
+		.mem_end = (SCRATCH07_FW_END_GB(s07) << 30) - 1ULL,
+		.interleave_mode = SCRATCH15_INTERLEAVE_MODE(s15),
+		.capacity_gb = SCRATCH14_MEMORY_CAPACITY_GB(s14),
+	};
+
+	return memc_tt_mimir_set_config(DEVICE_DT_GET(DT_NODELABEL(memc)), backend, fp,
+					&addr_cfg);
 }
 
 SYS_INIT(mimir_gddr_configure, POST_KERNEL, MIMIR_GDDR_CONFIG_INIT_PRIORITY);

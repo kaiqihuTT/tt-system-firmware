@@ -11,12 +11,98 @@ description: |
   or disables it in the bring-up (gddr_tile_mask). There are GDDR_NUM_TILES (2)
   tiles on Mimir.
 
+  The GDDR bring-up parameters (fw_params) are built from this node at init,
+  unless the platform installs its own with memc_tt_mimir_set_config(). Each
+  child node is one enabled frequency set point (FSP), in order; FSP fields not
+  listed here are left to the GDDR library default (INHERIT).
+
+  Each string enum value names a GDDR library constant: the driver upper-cases
+  it, turns "-" into "_" and appends it to the constant's prefix (e.g. vendor
+  "avery-sim" -> GDDR_VENDOR_AVERY_SIM). A new value only needs a matching
+  constant in the library.
+
 include: base.yaml
 
 properties:
+
   mem-tiles:
     type: phandles
     required: true
     description: |
       The GDDR tiles this controller brings up. Each
       phandle references a tenstorrent,mimir-gddr-tile node.
+
+  mem-start-gb:
+    type: int
+    required: true
+    description: Start of the GDDR window the MEM-tile firewalls allow, in GB.
+
+  mem-end-gb:
+    type: int
+    required: true
+    description: End of the GDDR window (exclusive), in GB.
+
+  interleave-mode:
+    type: int
+    required: true
+    description: ITN interleave mode (noc_interleave_mode_t).
+
+  capacity-gb:
+    type: int
+    required: true
+    description: Total GDDR capacity in GB (noc_gddr7_realign_t).
+
+  exec-mode:
+    type: string
+    required: true
+    enum:
+      - "emu"
+      - "sim"
+    description: |
+      Execution environment the GDDR library targets (fw_params.exec_mode):
+      FW_PARAMS_EXEC_MODE_EMU or FW_PARAMS_EXEC_MODE_SIM.
+
+  phy-type:
+    type: string
+    required: true
+    enum:
+      - "beh"
+    description: GDDR PHY type (gddr_phy_type), GDDR_PHY_TYPE_BEH.
+
+  vendor:
+    type: string
+    required: true
+    enum:
+      - "avery-sim"
+    description: GDDR memory vendor (gddr_vendor), GDDR_VENDOR_AVERY_SIM.
+
+  channel-density:
+    type: string
+    required: true
+    enum:
+      - "1-gb"
+    description: |
+      Per-channel GDDR density (common.channel_capacity),
+      GDDR_CHANNEL_DENSITY_1_GB.
+
+  ctrl-config-method:
+    type: string
+    required: true
+    enum:
+      - "compiled"
+    description: |
+      How the controller config is sourced (gddr_ctrl_config_method),
+      GDDR_CTRL_CONFIG_METHOD_COMPILED.
+
+child-binding:
+  description: One enabled GDDR frequency set point (FSP), in FSP order.
+
+  properties:
+    freq:
+      type: int
+      required: true
+      description: FSP frequency, passed to the GDDR library as gddr_freq.
+
+    phy-train-en:
+      type: boolean
+      description: Enable PHY training for this FSP (gddr_phy_train_en).
